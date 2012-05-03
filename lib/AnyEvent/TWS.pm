@@ -73,11 +73,11 @@ sub _process_message {
         return;
     }
 
-    $self->_read_lines($class, [], $class->_lines);
+    $self->_read(sub { $self->_read_lines($class, shift, [], $class->_lines) });
 }
 
 sub _read_lines {
-    my ($self, $class, $lines, $count) = @_;
+    my ($self, $class, $version, $lines, $count) = @_;
 
     my $cv = AnyEvent->condvar;
 
@@ -89,15 +89,24 @@ sub _read_lines {
         );
     }
 
-    $cv->cb(sub { $self->_parse_message($class, $lines) });
+    $cv->cb(sub { $self->_parse_message($class, $version, $lines) });
 }
 
 sub _parse_message {
-    my ($self, $class, $lines) = @_;
+    my ($self, $class, $version, $lines) = @_;
+
+    # check minimum version
+    if ($version < $class->_minimum_version) {
+        say sprintf(
+            "%s: got version %d, expected minimum %d",
+            $class, $version, $class->_minimum_version,
+        );
+        return;
+    }
 
     my $response;
     eval {
-        $response = $class->_parse(@$lines);
+        $response = $class->_parse($version, $lines);
     };
     if ($@) {
         if (ref $@ and ref $@ eq 'SCALAR') {
