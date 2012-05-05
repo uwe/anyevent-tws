@@ -27,7 +27,7 @@ sub new {
     $self->_init_watcher;
 
     # wait for connect
-    my $cv = AnyEvent->condvar;
+    my $cv = AE::cv;
 
     $self->{handle} = AnyEvent::Handle->new(
         connect  => [$host, $port],
@@ -79,7 +79,7 @@ sub _process_message {
 
     my $class = Protocol::TWS->response_by_id($msg_id);
     unless ($class) {
-        say "Unknown MSG ID '$msg_id'";
+        AE::log error => "Unknown MSG ID '$msg_id'";
         return;
     }
 
@@ -89,13 +89,17 @@ sub _process_message {
 sub _read_lines {
     my ($self, $class, $version, $lines, $count) = @_;
 
-    my $cv = AnyEvent->condvar;
+    my $cv = AE::cv;
 
     foreach (1 .. $count) {
         $cv->begin;
         $self->handle->unshift_read(
             line => "\0",
-            sub { say "RECV: '$_[1]'"; push @$lines, $_[1]; $cv->end; },
+            sub {
+                AE::log debug => "RECV: '$_[1]'";
+                push @$lines, $_[1];
+                $cv->end;
+            },
         );
     }
 
@@ -107,10 +111,8 @@ sub _parse_message {
 
     # check minimum version
     if ($version < $class->_minimum_version) {
-        say sprintf(
-            "%s: got version %d, expected minimum %d",
-            $class, $version, $class->_minimum_version,
-        );
+        AE::log error => "%s: got version %d, expected minimum %d",
+            $class, $version, $class->_minimum_version;
         return;
     }
 
@@ -123,7 +125,7 @@ sub _parse_message {
             # read more lines
             $self->_read_lines($class, $lines, ${$@});
         } else {
-            say "ERROR: $@";
+            AE::log error => "ERROR: $@";
             return;
         }
     }
@@ -147,15 +149,15 @@ sub _parse_message {
     }
     
     unless ($called) {
-        say "No watcher for $name";
-        say Dumper $response;
+        AE::log warn => "No watcher for $name";
+        AE::log warn => Dumper($response);
     }
 }
 
 sub _write {
     my ($self, $line) = @_;
 
-    say "SEND: '$line'";
+    AE::log debug => "SEND: '$line'";
 
     $self->handle->push_write($line . "\0");
 }
@@ -163,11 +165,14 @@ sub _write {
 sub _read {
     my ($self, $cb) = @_;
 
-    $self->handle->push_read(line => "\0", sub {
-        my $line = $_[1];
-        say "RECV: '$line'";
-        $cb->($line);
-    });
+    $self->handle->push_read(
+        line => "\0",
+        sub {
+            my $line = $_[1];
+            AE::log debug => "RECV: '$line'";
+            $cb->($line);
+        },
+    );
 }
 
 sub _init_watcher {

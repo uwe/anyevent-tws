@@ -2,7 +2,7 @@
 
 BEGIN {
     $ENV{AE_STRICT}  = 1;
-    $ENV{AE_VERBOSE} = 9;
+    $ENV{AE_VERBOSE} ||= 5;
 }
 
 use strict;
@@ -21,9 +21,9 @@ use Protocol::TWS;
 
 my $tws = AnyEvent::TWS->new(host => '192.168.2.53');
 
-$tws->call(Protocol::TWS::Request::reqCurrentTime->new, sub { my $res = shift; say $res->time });
+$tws->call(Protocol::TWS::Request::reqCurrentTime->new, sub { say "time: " . (shift)->time });
 
-$tws->call(req_account_updates());
+#$tws->call(req_account_updates());
 
 #my $contract = Protocol::TWS::Struct::Contract->new(symbol => 'ZNGA', secType => 'OPT', strike => '9', right => 'C');
 #$tws->call(Protocol::TWS::Request::reqContractDetails->new(id => 1, contract => $contract));
