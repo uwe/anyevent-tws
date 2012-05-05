@@ -13,23 +13,33 @@ use lib 'lib';
 use AnyEvent::TWS;
 
 
-my $symbol   = '';
-my $sec_type = 'STK';
-my $expiry   = '';
-my $strike   = '';
-my $right    = '';
-my $exchange = 'SMART';
-my $currency = 'USD';
+my %TYPES = (
+    STK => \&print_stock,
+    OPT => \&print_option,
+);
+
+
+my %contract = (
+    conId    => '',
+    symbol   => '',
+    secType  => 'STK',
+    expiry   => '',
+    strike   => '',
+    right    => '',
+    exchange => 'SMART',
+    currency => 'USD',
+);
 
 
 my $result = GetOptions(
-    "symbol|s=s"   => \$symbol,
-    "sec_type|t=s" => \$sec_type,
-    "expiry|e=s"   => \$expiry,
-    "strike|st=s"  => \$strike,
-    "right|r=s"    => \$right,
-    "exchange|e=s" => \$exchange,
-    "currency|c=s" => \$currency,
+    "conId|i=s"    => \$contract{conId},
+    "symbol|s=s"   => \$contract{symbol},
+    "secType|t=s"  => \$contract{secType},
+    "expiry|e=s"   => \$contract{expiry},
+    "strike|st=s"  => \$contract{strike},
+    "right|r=s"    => \$contract{right},
+    "exchange|e=s" => \$contract{exchange},
+    "currency|c=s" => \$contract{currency},
 );
 
 
@@ -37,18 +47,9 @@ my $tws = AnyEvent::TWS->new(host => '192.168.2.53');
 
 my $cv = AE::cv;
 
-my $contract = Protocol::TWS::Struct::Contract->new(
-    symbol   => $symbol,
-    secType  => $sec_type,
-    expiry   => $expiry,
-    strike   => $strike,
-    right    => $right,
-    exchange => $exchange,
-    currency => $currency,
-);
 my $request = Protocol::TWS::Request::reqContractDetails->new(
     id       => 1,
-    contract => $contract,
+    contract => Protocol::TWS::Struct::Contract->new(%contract),
 );
 $tws->call($request, \&print_contract);
 
@@ -61,9 +62,31 @@ sub print_contract {
         return $cv->send;
     }
 
-    use Data::Dumper;
+    my $contract = $response->contractDetails->summary;
+    my $code = $TYPES{$contract->secType}
+        or die 'Unknown secType ' . $contract->secType;
 
-    print Dumper $response;
+    $code->($contract);
+}
+
+sub print_stock {
+    my ($contract) = @_;
+
+    printf "conId:  %s\n", $contract->conId;
+    printf "symbol: %s\n", $contract->symbol;
+
+    print "\n";
+}
+
+sub print_option {
+    my ($contract) = @_;
+
+    printf "conId:  %s\n", $contract->conId;
+    printf "symbol: %s\n", $contract->symbol;
+    printf "expiry: %s\n", $contract->expiry;
+    printf "strike: %s\n", $contract->strike;
+    printf "right:  %s\n", $contract->right;
+
     print "\n";
 }
 

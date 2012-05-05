@@ -12,6 +12,9 @@ use lib '/home/uwe/repos/protocol-tws/lib';
 use Protocol::TWS;
 
 
+my %IGNORE_ERROR = map { $_ => 1 } qw/2104 2106/;
+
+
 sub handle  { $_[0]->{handle} }
 sub watcher { $_[0]->{watcher} }
 
@@ -223,6 +226,9 @@ sub _remove_watcher {
 
 sub _handle_error {
     my ($self, $error) = @_;
+
+    # ignore market data messages
+    return if $IGNORE_ERROR{$error->errorCode};
 
     say Dumper $error;
 }
