@@ -12,7 +12,8 @@ use lib '/home/uwe/repos/protocol-tws/lib';
 use Protocol::TWS;
 
 
-sub handle { $_[0]->{handle} }
+sub handle  { $_[0]->{handle} }
+sub watcher { $_[0]->{watcher} }
 
 sub new {
     my ($class, %arg) = @_;
@@ -22,6 +23,8 @@ sub new {
     my $client_id = $arg{client_id} || 0;
 
     my $self = bless {}, $class;
+
+    $self->_init_watcher;
 
     # wait for connect
     my $cv = AnyEvent->condvar;
@@ -35,9 +38,7 @@ sub new {
                 AE::log error => 'fatal';
             }
         },
-        on_read  => sub {
-            $self->process_message;
-        },
+        on_read  => sub { $self->process_message },
     );
     $self->_write(59);
     $self->_read(sub { $self->{server_version} = shift; });
@@ -50,11 +51,21 @@ sub new {
 }
 
 sub call {
-    my ($self, $request) = @_;
+    my ($self, $request, $cb) = @_;
 
-    my @lines = $request->_serialize;
+    die 'CALLBACK missing' unless $cb;
 
-    $self->_write($_) foreach (@lines);
+    # register watcher
+    my %response = $request->_response;
+    my @watcher = ();
+    while (my ($name, $type) = each %response) {
+        my $id = '_ALL_';
+        $id = $request->id if $request->can('id');
+        push @watcher, [$name, $id];
+        $self->_add_watcher($name, $id, $type, $cb, \@watcher);
+    }
+
+    $self->_write($_) foreach ($request->_serialize);
 }
 
 sub process_message {
@@ -117,7 +128,28 @@ sub _parse_message {
         }
     }
 
-    say Dumper $response;
+    my $name   = $response->_name;
+    my $called = 0;
+
+    # check for system watchers
+    if ($self->_handle_watcher($name, '_SYS_', $response)) {
+        $called = 1;
+    }
+
+    # check for general watchers
+    if ($self->_handle_watcher($name, '_ALL_', $response)) {
+        $called = 1;
+    }
+
+    # check for specific watchers
+    if ($response->can('id') and $self->_handle_watcher($name, $response->id, $response)) {
+        $called = 1;
+    }
+    
+    unless ($called) {
+        say "No watcher for $name";
+        say Dumper $response;
+    }
 }
 
 sub _write {
@@ -137,6 +169,71 @@ sub _read {
         $cb->($line);
     });
 }
+
+sub _init_watcher {
+    my ($self) = @_;
+
+    $self->{watcher} = {};
+
+    $self->_add_watcher(error           => _SYS_ => cont   => sub { $self->_handle_error(shift) });
+    $self->_add_watcher(nextValidId     => _SYS_ => single => sub { $self->_handle_next_valid_id(shift) });
+    $self->_add_watcher(managedAccounts => _SYS_ => single => sub { $self->_handle_managed_accounts(shift) });
+}
+
+sub _add_watcher {
+    my ($self, $name, $id, $type, $cb, @param) = @_;
+
+    if ($self->{watcher}->{$name}->{$id}) {
+        die "Watcher already present for this id: name = $name, id = $id";
+    }
+
+    $self->{watcher}->{$name}->{$id} = [$type, $cb, @param];
+}
+
+sub _handle_watcher {
+    my ($self, $name, $id, @args) = @_;
+
+    my $watcher = $self->{watcher}->{$name}->{$id};
+    return unless $watcher;
+
+    my ($type, $cb, @param) = @$watcher;
+    $cb->(@args);
+    if ($type eq 'single') {
+        $self->_remove_watcher($name, $id);
+    }
+    elsif ($type eq 'end') {
+        foreach my $watcher (@{$param[0]}) {
+            $self->_remove_watcher(@$watcher);
+        }
+    }
+
+    return 1;
+}
+
+sub _remove_watcher {
+    my ($self, $name, $id) = @_;
+
+    delete $self->{watcher}->{$name}->{$id};
+}
+
+sub _handle_error {
+    my ($self, $error) = @_;
+
+    say Dumper $error;
+}
+
+sub _handle_next_valid_id {
+    my ($self, $next_valid_id) = @_;
+
+    $self->{next_valid_id} = $next_valid_id->id;
+}
+
+sub _handle_managed_accounts {
+    my ($self, $managed_accounts) = @_;
+
+    $self->{accounts} = split /,/, $managed_accounts->accountsList;
+}
+
 
 1;
 

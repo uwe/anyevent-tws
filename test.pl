@@ -2,7 +2,7 @@
 
 BEGIN {
     $ENV{AE_STRICT}  = 1;
-    $ENV{AE_VERBOSE} = 5;
+    $ENV{AE_VERBOSE} = 9;
 }
 
 use strict;
@@ -10,6 +10,7 @@ use warnings;
 use feature qw/say/;
 
 use AnyEvent;
+use Data::Dumper;
 
 use lib 'lib';
 use AnyEvent::TWS;
@@ -20,10 +21,56 @@ use Protocol::TWS;
 
 my $tws = AnyEvent::TWS->new(host => '192.168.2.53');
 
-my $req = Protocol::TWS::Request::reqCurrentTime->new();
+$tws->call(Protocol::TWS::Request::reqCurrentTime->new, sub { my $res = shift; say $res->time });
 
-$tws->call($req);
+$tws->call(req_account_updates());
+
+#my $contract = Protocol::TWS::Struct::Contract->new(symbol => 'ZNGA', secType => 'OPT', strike => '9', right => 'C');
+#$tws->call(Protocol::TWS::Request::reqContractDetails->new(id => 1, contract => $contract));
+
+#$tws->call(calculate_option_price());
+
+AE::cv->recv;
 
 
-AnyEvent->condvar->recv;
+sub calculate_implied_volatility {
+    my $contract = Protocol::TWS::Struct::Contract->new(
+        symbol   => 'ZNGA',
+        secType  => 'OPT',
+        expiry   => '20120518',
+        exchange => 'SMART',
+        strike   => '9',
+        right    => 'C',
+    );
+    return Protocol::TWS::Request::calculateImpliedVolatility->new(
+        id => 2,
+        contract => $contract,
+        optionPrice => '0.70',
+        underPrice  => '8.33',
+    );
+}
+
+sub calculate_option_price {
+    my $contract = Protocol::TWS::Struct::Contract->new(
+        symbol   => 'ZNGA',
+        secType  => 'OPT',
+        expiry   => '20120518',
+        exchange => 'SMART',
+        strike   => '9',
+        right    => 'C',
+    );
+    return Protocol::TWS::Request::calculateOptionPrice->new(
+        id => 2,
+        contract   => $contract,
+        volatility => '1.5',
+        underPrice => '8.33',
+    );
+}
+
+sub req_account_updates {
+    return Protocol::TWS::Request::reqAccountUpdates->new(
+        subscribe => 1,
+        acctCode  => '',
+    ), sub { say Dumper(shift) };
+}
 
