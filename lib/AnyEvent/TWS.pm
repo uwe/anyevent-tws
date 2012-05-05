@@ -27,16 +27,15 @@ sub new {
     my $cv = AnyEvent->condvar;
 
     $self->{handle} = AnyEvent::Handle->new(
-        connect    => [$host, $port],
-        on_error   => sub {
-            die 'on_error';
-            $self->handle->destroy;
+        connect  => [$host, $port],
+        on_error => sub {
+            my ($handle, $fatal, $message) = @_;
+            AE::log error => $message;
+            if ($fatal) {
+                AE::log error => 'fatal';
+            }
         },
-        on_failure => sub {
-            die 'on_failure';
-            $self->handle->destroy;
-        },
-        on_read    => sub {
+        on_read  => sub {
             $self->process_message;
         },
     );
