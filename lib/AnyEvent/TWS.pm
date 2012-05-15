@@ -21,19 +21,23 @@ sub watcher { $_[0]->{watcher} }
 sub new {
     my ($class, %arg) = @_;
 
-    my $host      = $arg{host}      || '127.0.0.1';
-    my $port      = $arg{port}      || 7496;
-    my $client_id = $arg{client_id} || 0;
+    my $self = bless {
+        host      => $arg{host}      || '127.0.0.1',
+        port      => $arg{port}      || 7496,
+        client_id => $arg{client_id} || 0,
+    }, $class;
 
-    my $self = bless {}, $class;
+    return $self;
+}
 
-    $self->_init_watcher;
+sub connect {
+    my ($self) = @_;
 
-    # wait for connect
     my $cv = AE::cv;
+    $self->_init_watcher($cv);
 
     $self->{handle} = AnyEvent::Handle->new(
-        connect  => [$host, $port],
+        connect  => [$self->{host}, $self->{port}],
         on_error => sub {
             my ($handle, $fatal, $message) = @_;
             AE::log error => $message;
@@ -44,13 +48,11 @@ sub new {
         on_read  => sub { $self->process_message },
     );
     $self->_write(59);
-    $self->_read(sub { $self->{server_version} = shift; });
-    $self->_read(sub { $self->{server_time}    = shift; $cv->send; });
-    $self->_write($client_id);
+    $self->_read(sub { $self->{server_version} = shift });
+    $self->_read(sub { $self->{server_time}    = shift });
+    $self->_write($self->{client_id});
 
-    $cv->recv;
-
-    return $self;
+    return $cv;
 }
 
 sub call {
@@ -179,13 +181,13 @@ sub _read {
 }
 
 sub _init_watcher {
-    my ($self) = @_;
+    my ($self, $cv) = @_;
 
     $self->{watcher} = {};
 
     $self->_add_watcher(error           => _SYS_ => cont   => sub { $self->_handle_error(shift) });
     $self->_add_watcher(nextValidId     => _SYS_ => single => sub { $self->_handle_next_valid_id(shift) });
-    $self->_add_watcher(managedAccounts => _SYS_ => single => sub { $self->_handle_managed_accounts(shift) });
+    $self->_add_watcher(managedAccounts => _SYS_ => single => sub { $self->_handle_managed_accounts(shift); $cv->send });
 }
 
 sub _add_watcher {
@@ -242,7 +244,9 @@ sub _handle_next_valid_id {
 sub _handle_managed_accounts {
     my ($self, $managed_accounts) = @_;
 
-    $self->{accounts} = split /,/, $managed_accounts->accountsList;
+    my @accounts = split /,/, $managed_accounts->accountsList;
+
+    $self->{accounts} = \@accounts;
 }
 
 

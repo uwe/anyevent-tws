@@ -12,8 +12,12 @@ use lib '/home/uwe/repos/anyevent-tws/lib';
 use AnyEvent::TWS;
 
 
-my $tws = AnyEvent::TWS->new(host => '192.168.2.53');
+my $tws = AnyEvent::TWS->new(
+    host => $ENV{TWS_HOST},
+    port => $ENV{TWS_PORT},
+);
 
+$tws->connect->recv;
 
 my $contract = Protocol::TWS::Struct::Contract->new(
     symbol   => 'IBM',

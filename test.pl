@@ -12,14 +12,21 @@ use feature qw/say/;
 use AnyEvent;
 use Data::Dumper;
 
-use lib 'lib';
+use lib '/home/uwe/repos/anyevent-tws/lib';
 use AnyEvent::TWS;
 
 use lib '/home/uwe/repos/protocol-tws/lib';
 use Protocol::TWS;
 
 
-my $tws = AnyEvent::TWS->new(host => '192.168.2.53');
+my $tws = AnyEvent::TWS->new(
+    host => $ENV{TWS_HOST},
+    port => $ENV{TWS_PORT},
+);
+
+$tws->connect->recv;
+
+say 'Accounts: ' . join(', ', @{$tws->{accounts}});
 
 $tws->call(Protocol::TWS::Request::reqCurrentTime->new, sub { say "time: " . (shift)->time });
 

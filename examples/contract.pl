@@ -9,7 +9,7 @@ use Getopt::Long;
 use lib '/home/uwe/repos/protocol-tws/lib';
 use Protocol::TWS;
 
-use lib 'lib';
+use lib '/home/uwe/repos/anyevent-tws/lib';
 use AnyEvent::TWS;
 
 
@@ -43,7 +43,12 @@ my $result = GetOptions(
 );
 
 
-my $tws = AnyEvent::TWS->new(host => '192.168.2.53');
+my $tws = AnyEvent::TWS->new(
+    host => $ENV{TWS_HOST},
+    port => $ENV{TWS_PORT},
+);
+
+$tws->connect->recv;
 
 my $cv = AE::cv;
 
