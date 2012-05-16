@@ -128,7 +128,7 @@ sub _parse_message {
     if ($@) {
         if (ref $@ and ref $@ eq 'SCALAR') {
             # read more lines
-            $self->_read_lines($class, $lines, ${$@});
+            $self->_read_lines($class, $version, $lines, ${$@});
         } else {
             AE::log error => "ERROR: $@";
             return;
