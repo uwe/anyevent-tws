@@ -55,6 +55,10 @@ sub connect {
     return $cv;
 }
 
+sub next_valid_id {
+    (shift)->{next_valid_id}++;
+}
+
 sub call {
     my ($self, $request, $cb) = @_;
 
@@ -186,9 +190,12 @@ sub _init_watcher {
 
     $self->{watcher} = {};
 
+    $cv->begin;
+    $cv->begin;
+
     $self->_add_watcher(error           => _SYS_ => cont   => sub { $self->_handle_error(shift) });
-    $self->_add_watcher(nextValidId     => _SYS_ => single => sub { $self->_handle_next_valid_id(shift) });
-    $self->_add_watcher(managedAccounts => _SYS_ => single => sub { $self->_handle_managed_accounts(shift); $cv->send });
+    $self->_add_watcher(nextValidId     => _SYS_ => single => sub { $self->_handle_next_valid_id(shift);    $cv->end });
+    $self->_add_watcher(managedAccounts => _SYS_ => single => sub { $self->_handle_managed_accounts(shift); $cv->end });
 }
 
 sub _add_watcher {
