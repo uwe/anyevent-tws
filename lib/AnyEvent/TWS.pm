@@ -2,13 +2,10 @@ package AnyEvent::TWS;
 
 use strict;
 use warnings;
-use feature qw/say/;
 
 use AnyEvent;
 use AnyEvent::Handle;
 use Data::Dumper;
-
-use lib '/home/uwe/repos/protocol-tws/lib';
 use Protocol::TWS;
 
 
@@ -157,7 +154,7 @@ sub _parse_message {
     if ($response->can('id') and $self->_handle_watcher($name, $response->id, $response)) {
         $called = 1;
     }
-    
+
     unless ($called) {
         AE::log warn => "No watcher for $name";
         AE::log warn => Dumper($response);
@@ -240,7 +237,7 @@ sub _handle_error {
     # ignore market data messages
     return if $IGNORE_ERROR{$error->errorCode};
 
-    say Dumper $error;
+    warn Dumper $error;
 }
 
 sub _handle_next_valid_id {
@@ -257,6 +254,111 @@ sub _handle_managed_accounts {
     $self->{accounts} = \@accounts;
 }
 
-
 1;
 
+__END__
+
+=pod
+
+=head1 NAME
+
+AnyEvent::TWS - inofficial InteractiveBrokers Trader Workstation (TWS) API
+
+=head1 SYNOPSIS
+
+###TODO###
+
+=head1 DESCRIPTION
+
+This is an inofficial Perl port of InteractiveBrokers Trader Workstation API.
+It is based of the C++ API (L<http://www.interactivebrokers.com/php/apiUsersGuide/apiguide.htm#apiguide/c/c.htm>).
+
+Because it is based on L<AnyEvent> it can also be used in graphical programs.
+In the examples directory is a simple L<Tk> program (and others).
+
+In general it works like this: You create a request with a L<Protocol::TWS::Request>
+subclass and hand it over to L<call>, togehter with a callback. Whenever a
+response to your request comes in (which can be repeatedly), your callback is
+called, together with a L<Protocol::TWS::Response> subclass as first parameter.
+If you want to stop receiving repeated responses, there is usually a API
+request to do that (starting with "cancel...").
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+Accepts the following parameters:
+
+=over
+
+=item host - default: 127.0.0.1
+
+=item port - default: 7496
+
+=item client_id - default: 0
+
+=back
+
+It does not establish a connection, you have to call L<connect> for that.
+
+=head1 METHODS
+
+=head2 connect
+
+Initiates a connection to InteractiveBrokers API. It returns a
+L<condition variable|AnyEvent\CONDITION_VARIABLES>. You can call C<recv>
+on it to block till the connection is established.
+
+=head2 next_valid_id
+
+Returns the next unused request ID.
+
+It is important to always use a new request ID as this module uses the
+request ID to match incoming messages to outstanding callbacks. So never
+reuse a request ID.
+
+=head2 call
+
+Sends off a request. The first parameter is a L<Protocol::TWS::Request>
+subclass, the second a callback. The callback is called everytime a
+response to your original request comes in. This can be repeatedly.
+But there are also a lot of requests, that just send exactly one response.
+
+The first parameter to your callback is a L<Protocol::TWS::Response>
+subclass. Use closures (or the request ID) to attach/match objects or
+other parameters.
+
+=head1 INTERNAL METHODS
+
+=head2 process_message
+
+Called internally whenever a new message on the socket arrives.
+
+=head1 DEBUGGING
+
+Set the C<AE_VERBOSE> environment variable to 5 (warn) or 8 (debug) to
+get debugging output.
+
+Be careful to always use a new request ID (see L<next_valid_id>), otherwise
+the module might get confused.
+
+If you are missing some responses, it could also be a bug. I have not tested
+every type of request. If you find a bug, please email me a code example
+together with a description what you expect as result.
+
+If you have any questions or suggestions feel free to email me as well. There
+are a lot of abstractions missing.
+
+Also, if you have any examples that I can include, I would appreciate it.
+
+=head1 SEE ALSO
+
+L<http://www.interactivebrokers.com/en/p.php?f=programInterface>,
+L<http://www.interactivebrokers.com/php/apiUsersGuide/apiguide.htm#apiguide/c/c.htm>,
+L<Protocol::TWS>, L<Finance::TWS::Simple>
+
+=head1 AUTHOR
+
+Uwe Voelker uwe@uwevoelker.de
+
+=cut
