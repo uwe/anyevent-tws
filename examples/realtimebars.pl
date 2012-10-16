@@ -1,14 +1,11 @@
 #!/usr/bin/env perl
 
+# request realtime bars
+
 use strict;
 use warnings;
 
 use AnyEvent;
-
-use lib '/home/uwe/repos/protocol-tws/lib';
-use Protocol::TWS;
-
-use lib '/home/uwe/repos/anyevent-tws/lib';
 use AnyEvent::TWS;
 
 
@@ -21,20 +18,20 @@ my $tws = AnyEvent::TWS->new(
 
 $tws->connect->recv;
 
-my $contract = Protocol::TWS::Struct::Contract->new(
+my $contract = $tws->struct(Contract => {
     symbol   => $symbol,
     secType  => 'STK',
     exchange => 'SMART',
     currency => 'USD',
-);
+});
 
-my $req = Protocol::TWS::Request::reqRealTimeBars->new(
-    id         => 1,
+my $req = $tws->request(reqRealTimeBars => {
+    id         => $tws->next_valid_id,
     contract   => $contract,
     barSize    => 5,
     whatToShow => 'TRADES',
     useRTH     => 0,
-);
+});
 
 my $last;
 my $ups   = 0;
@@ -67,7 +64,7 @@ $tws->call(
 
         # wait for some periods
         return unless $ups + $downs > 10;
-        
+
         # do something (silly) with up/down count
         if ($ups > 2 * $downs) {
             print "I would buy ($last).\n";

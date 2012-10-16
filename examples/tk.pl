@@ -1,18 +1,14 @@
 #!/usr/bin/env perl
 
+# very simple example to show that AnyEvent::TWS works in Tk apps too
+
 use strict;
 use warnings;
 
 use Tk;
 
-use AnyEvent;
-use Data::Dumper;
-
-use lib '/home/uwe/repos/protocol-tws/lib';
-use Protocol::TWS;
-
-use lib '/home/uwe/repos/anyevent-tws/lib';
 use AnyEvent::TWS;
+use Data::Dumper;
 
 
 my $tws = AnyEvent::TWS->new(
@@ -61,10 +57,10 @@ sub _search {
     }
 
     $tws->call(
-        Protocol::TWS::Request::reqContractDetails->new(
-            id       => 1,
-            contract => Protocol::TWS::Struct::Contract->new(%data),
-        ),
+        $tws->request(reqContractDetails => {
+            id       => $tws->next_valid_id,
+            contract => $tws->struct(Contract => \%data),
+        }),
         sub {
             my $res = shift;
             warn Dumper $res;

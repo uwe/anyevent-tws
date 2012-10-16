@@ -1,14 +1,11 @@
 #!/usr/bin/env perl
 
+# request multiple realtime bars
+
 use strict;
 use warnings;
 
 use AnyEvent;
-
-use lib '/home/uwe/repos/protocol-tws/lib';
-use Protocol::TWS;
-
-use lib '/home/uwe/repos/anyevent-tws/lib';
 use AnyEvent::TWS;
 
 
@@ -19,7 +16,7 @@ my $tws = AnyEvent::TWS->new(
 
 $tws->connect->recv;
 
-my $contract = Protocol::TWS::Struct::Contract->new(
+my $contract = $tws->struct(Contract => {
     symbol   => 'IBM',
     secType  => 'OPT',
     expiry   => '20120720',
@@ -27,21 +24,20 @@ my $contract = Protocol::TWS::Struct::Contract->new(
     right    => 'PUT',
     exchange => 'SMART',
     currency => 'USD',
-);
+});
 
-my $req = Protocol::TWS::Request::reqRealTimeBars->new(
+my $req = $tws->request(reqRealTimeBars => {
     id         => 1,
     contract   => $contract,
     barSize    => 5,
     whatToShow => '',
     useRTH     => 0,
-);
+});
 
 my $cv = AnyEvent->condvar;
 
-my $id = 1;
 foreach my $type (qw/TRADES BID ASK MIDPOINT/) {
-    $req->id($id++);
+    $req->id($tws->next_valid_id);
     $req->whatToShow($type);
     $tws->call($req, sub { print_bar(shift, $type) });
 }

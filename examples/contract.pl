@@ -1,16 +1,13 @@
 #!/usr/bin/env perl
 
+# search for contracts
+
 use strict;
 use warnings;
 
 use AnyEvent;
-use Getopt::Long;
-
-use lib '/home/uwe/repos/protocol-tws/lib';
-use Protocol::TWS;
-
-use lib '/home/uwe/repos/anyevent-tws/lib';
 use AnyEvent::TWS;
+use Getopt::Long;
 
 
 my %TYPES = (
@@ -52,10 +49,10 @@ $tws->connect->recv;
 
 my $cv = AE::cv;
 
-my $request = Protocol::TWS::Request::reqContractDetails->new(
-    id       => 1,
-    contract => Protocol::TWS::Struct::Contract->new(%contract),
-);
+my $request = $tws->request(reqContractDetails => {
+    id       => $tws->next_valid_id,
+    contract => $tws->struct(Contract => \%contract),
+});
 $tws->call($request, \&print_contract);
 
 $cv->recv;

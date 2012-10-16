@@ -1,15 +1,11 @@
 #!/usr/bin/env perl
 
+# request historical quotes
+
 use strict;
 use warnings;
 
 use AnyEvent;
-use Data::Dumper;
-
-use lib '/home/uwe/repos/protocol-tws/lib';
-use Protocol::TWS;
-
-use lib '/home/uwe/repos/anyevent-tws/lib';
 use AnyEvent::TWS;
 
 
@@ -20,15 +16,15 @@ my $tws = AnyEvent::TWS->new(
 
 $tws->connect->recv;
 
-my $contract = Protocol::TWS::Struct::Contract->new(
+my $contract = $tws->struct(Contract => {
     symbol      => 'EUR',
     secType     => 'CASH',
     exchange    => 'IDEALPRO',
     localSymbol => 'EUR.USD',
-);
+});
 
-my $request = Protocol::TWS::Request::reqHistoricalData->new(
-    id             => 1,
+my $request = $tws->request(reqHistoricalData => {
+    id             => $tws->next_valid_id,
     contract       => $contract,
     endDateTime    => '20120516  23:00:00',
     durationStr    => '1 D',
@@ -36,7 +32,7 @@ my $request = Protocol::TWS::Request::reqHistoricalData->new(
     whatToShow     => 'BID_ASK',
     useRTH         => 0,
     formatDate     => 1,
-);
+});
 
 $tws->call(
     $request,

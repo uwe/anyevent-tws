@@ -1,5 +1,7 @@
 package AnyEvent::TWS;
 
+# ABSTRACT: inofficial InteractiveBrokers Trader Workstation (TWS) API
+
 use strict;
 use warnings;
 
@@ -72,6 +74,22 @@ sub call {
     }
 
     $self->_write($_) foreach ($request->_serialize);
+}
+
+sub struct {
+    my ($self, $name, $arg) = @_;
+
+    my $class = 'Protocol::TWS::Struct::' . $name;
+    eval "use $class"; die $@ if $@;
+    return $class->new(%$arg);
+}
+
+sub request {
+    my ($self, $name, $arg) = @_;
+
+    my $class = 'Protocol::TWS::Request::' . $name;
+    eval "use $class"; die $@ if $@;
+    return $class->new(%$arg);
 }
 
 sub process_message {
@@ -256,17 +274,21 @@ sub _handle_managed_accounts {
 
 1;
 
-__END__
-
 =pod
-
-=head1 NAME
-
-AnyEvent::TWS - inofficial InteractiveBrokers Trader Workstation (TWS) API
 
 =head1 SYNOPSIS
 
-###TODO###
+  my $tws = AnyEvent::TWS->new;
+  $tws->connect->recv;
+
+  my $req = $tws->request(reqContractDetails => {
+      id       => $tws->next_valid_id,
+      contract => $tws->struct(Contract => {...}),
+  });
+  $tws->call($req, sub { my $res = shift; ... });
+
+  # simulate event loop
+  AE::cv->recv;
 
 =head1 DESCRIPTION
 
@@ -328,6 +350,18 @@ The first parameter to your callback is a L<Protocol::TWS::Response>
 subclass. Use closures (or the request ID) to attach/match objects or
 other parameters.
 
+=head2 struct
+
+Shortcut for instanciating L<Protocol::TWS::Struct> subclasses. First
+parameter name (equals class name), second parameter (hashref) arguments
+to the constructor.
+
+=head2 request
+
+Shortcut for instanciating L<Protocol::TWS::Request> subclasses. First
+parameter name (equals class name), second parameter (hashref) arguments
+to the constructor.
+
 =head1 INTERNAL METHODS
 
 =head2 process_message
@@ -346,8 +380,7 @@ If you are missing some responses, it could also be a bug. I have not tested
 every type of request. If you find a bug, please email me a code example
 together with a description what you expect as result.
 
-If you have any questions or suggestions feel free to email me as well. There
-are a lot of abstractions missing.
+If you have any questions or suggestions feel free to email me as well.
 
 Also, if you have any examples that I can include, I would appreciate it.
 
@@ -356,9 +389,5 @@ Also, if you have any examples that I can include, I would appreciate it.
 L<http://www.interactivebrokers.com/en/p.php?f=programInterface>,
 L<http://www.interactivebrokers.com/php/apiUsersGuide/apiguide.htm#apiguide/c/c.htm>,
 L<Protocol::TWS>, L<Finance::TWS::Simple>
-
-=head1 AUTHOR
-
-Uwe Voelker uwe@uwevoelker.de
 
 =cut
