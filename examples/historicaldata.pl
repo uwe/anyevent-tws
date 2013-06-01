@@ -7,6 +7,7 @@ use warnings;
 
 use AnyEvent;
 use AnyEvent::TWS;
+use DateTime;
 
 
 my $tws = AnyEvent::TWS->new(
@@ -23,10 +24,14 @@ my $contract = $tws->struct(Contract => {
     localSymbol => 'EUR.USD',
 });
 
+# yesterday (Friday on weekends)
+my $date = DateTime->today->subtract(days => 1);
+$date = $date->subtract(days => $date->dow - 5) if $date->dow > 5;
+
 my $request = $tws->request(reqHistoricalData => {
     id             => $tws->next_valid_id,
     contract       => $contract,
-    endDateTime    => '20120516  23:00:00',
+    endDateTime    => $date->ymd('') . '  23:00:00',
     durationStr    => '1 D',
     barSizeSetting => '1 hour',
     whatToShow     => 'BID_ASK',

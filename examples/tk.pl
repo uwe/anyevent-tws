@@ -16,7 +16,7 @@ my $tws = AnyEvent::TWS->new(
     port => $ENV{TWS_PORT},
 );
 
-$tws->connect->tws;
+$tws->connect->recv;
 
 
 my @schema = (
