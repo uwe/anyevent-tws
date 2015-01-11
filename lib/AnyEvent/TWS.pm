@@ -11,7 +11,7 @@ use Data::Dumper;
 use Protocol::TWS;
 
 
-my %IGNORE_ERROR = map { $_ => 1 } qw/2104 2106/;
+my %IGNORE_ERROR = map { $_ => 1 } qw/2104 2106 2108 2119/;
 
 
 sub handle  { $_[0]->{handle} }
