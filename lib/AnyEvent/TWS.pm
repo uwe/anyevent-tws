@@ -46,12 +46,21 @@ sub connect {
         },
         on_read  => sub { $self->process_message },
     );
-    $self->_write(59);
+    $self->_write(63);
     $self->_read(sub { $self->{server_version} = shift });
-    $self->_read(sub { $self->{server_time}    = shift });
-    $self->_write($self->{client_id});
+    $self->_read(sub { $self->{server_time}    = shift; $self->_start_api });
 
     return $cv;
+}
+
+sub _start_api {
+    my ($self) = @_;
+
+    $self->call(
+        Protocol::TWS::Request::startApi->new(
+            clientId => $self->{client_id},
+        ),
+    );
 }
 
 sub next_valid_id {
@@ -61,10 +70,10 @@ sub next_valid_id {
 sub call {
     my ($self, $request, $cb) = @_;
 
-    die 'CALLBACK missing' unless $cb;
+    my %response = $request->_response;
+    die 'CALLBACK missing' if %response and not $cb;
 
     # register watcher
-    my %response = $request->_response;
     my @watcher = ();
     while (my ($name, $type) = each %response) {
         my $id = '_ALL_';
